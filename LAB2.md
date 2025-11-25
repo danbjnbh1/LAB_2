@@ -176,7 +176,7 @@ PID TTY          TIME CMD
 24279 pts/11   00:00:00 looper
 24326 pts/11   00:00:00 looper <defunct>
 24336 pts/11   00:00:00 ps
-```
+```  // Tolerance for clock skew to prevent immediate payments being marked as PENDING
 
 Now that you finished tasks 1, 2, 3, save your code aside. You will need it for submission and for Lab C.
 

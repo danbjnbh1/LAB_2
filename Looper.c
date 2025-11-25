@@ -7,16 +7,24 @@
 void handler(int sig)
 {
 	printf("\nRecieved Signal : %s\n", strsignal(sig));
+	
 	if (sig == SIGTSTP)
 	{
+		signal(SIGCONT, handler);  // Make sure SIGCONT handler is set
 		signal(SIGTSTP, SIG_DFL);
+		raise(SIGTSTP);
 	}
 	else if (sig == SIGCONT)
 	{
+		signal(SIGTSTP, handler);  // Reinstate SIGTSTP handler
 		signal(SIGCONT, SIG_DFL);
+		raise(SIGCONT);
 	}
-	signal(sig, SIG_DFL);
-	raise(sig);
+	else if (sig == SIGINT)
+	{
+		signal(SIGINT, SIG_DFL);
+		raise(SIGINT);
+	}
 }
 
 int main(int argc, char **argv)
