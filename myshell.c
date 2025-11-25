@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
 #include "LineParser.h"
 
 #ifndef PATH_MAX
@@ -32,6 +34,48 @@ void execute(cmdLine *pCmdLine) {
         if (debug_mode) {
             fprintf(stderr, "PID: %d\n", getpid());
             fprintf(stderr, "Executing command: %s\n", pCmdLine->arguments[0]);
+        }
+        
+        // Handle input redirection (<)
+        if (pCmdLine->inputRedirect != NULL) {
+            int fd_in = open(pCmdLine->inputRedirect, O_RDONLY);
+            if (fd_in < 0) {
+                perror("open input file failed");
+                _exit(1);
+            }
+            
+            // Redirect stdin (fd 0) to the input file
+            if (dup2(fd_in, STDIN_FILENO) < 0) {
+                perror("dup2 input failed");
+                close(fd_in);
+                _exit(1);
+            }
+            close(fd_in);  // Close original fd after dup2
+            
+            if (debug_mode) {
+                fprintf(stderr, "Input redirected from: %s\n", pCmdLine->inputRedirect);
+            }
+        }
+        
+        // Handle output redirection (>)
+        if (pCmdLine->outputRedirect != NULL) {
+            int fd_out = open(pCmdLine->outputRedirect, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd_out < 0) {
+                perror("open output file failed");
+                _exit(1);
+            }
+            
+            // Redirect stdout (fd 1) to the output file
+            if (dup2(fd_out, STDOUT_FILENO) < 0) {
+                perror("dup2 output failed");
+                close(fd_out);
+                _exit(1);
+            }
+            close(fd_out);  // Close original fd after dup2
+            
+            if (debug_mode) {
+                fprintf(stderr, "Output redirected to: %s\n", pCmdLine->outputRedirect);
+            }
         }
         
         // Execute the command using execvp (searches in PATH)
@@ -111,6 +155,60 @@ int main(int argc, char *argv[]) {
             }
             freeCmdLines(parsedLine);
             continue;  // Don't execute, continue to next iteration
+        }
+        
+        // Check for "blast" command - send SIGINT
+        if (strcmp(parsedLine->arguments[0], "blast") == 0) {
+            if (parsedLine->argCount < 2) {
+                fprintf(stderr, "blast: missing PID argument\n");
+            } else {
+                pid_t target_pid = atoi(parsedLine->arguments[1]);
+                if (kill(target_pid, SIGINT) == 0) {
+                    if (debug_mode) {
+                        fprintf(stderr, "Sent SIGINT to process %d\n", target_pid);
+                    }
+                } else {
+                    perror("blast failed");
+                }
+            }
+            freeCmdLines(parsedLine);
+            continue;
+        }
+        
+        // Check for "zzzz" command - send SIGTSTP
+        if (strcmp(parsedLine->arguments[0], "zzzz") == 0) {
+            if (parsedLine->argCount < 2) {
+                fprintf(stderr, "zzzz: missing PID argument\n");
+            } else {
+                pid_t target_pid = atoi(parsedLine->arguments[1]);
+                if (kill(target_pid, SIGTSTP) == 0) {
+                    if (debug_mode) {
+                        fprintf(stderr, "Sent SIGTSTP to process %d\n", target_pid);
+                    }
+                } else {
+                    perror("zzzz failed");
+                }
+            }
+            freeCmdLines(parsedLine);
+            continue;
+        }
+        
+        // Check for "kuku" command - send SIGCONT
+        if (strcmp(parsedLine->arguments[0], "kuku") == 0) {
+            if (parsedLine->argCount < 2) {
+                fprintf(stderr, "kuku: missing PID argument\n");
+            } else {
+                pid_t target_pid = atoi(parsedLine->arguments[1]);
+                if (kill(target_pid, SIGCONT) == 0) {
+                    if (debug_mode) {
+                        fprintf(stderr, "Sent SIGCONT to process %d\n", target_pid);
+                    }
+                } else {
+                    perror("kuku failed");
+                }
+            }
+            freeCmdLines(parsedLine);
+            continue;
         }
         
         // Execute the command
